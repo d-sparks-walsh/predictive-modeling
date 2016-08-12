@@ -31,28 +31,24 @@ require(randomForest)                                                           
 require(party)                                                                   #Statistically based recursive partitioning.
 require(gbm)                                                                     #Generalized boosted machines.
 
-mdl <- randomForest(  died ~ Sex + Age + Pclass
-                    , data=subset(dfd, tt=="trn"))                               #Build random forest model...fails because of missingness.
-mdl <- randomForest(  died ~ Sex + Age + Pclass
-                    , data=na.omit(subset(dfd, tt=="trn")))                      #Build random forest model...problem with factor not specified as a factor.
 mdl <- randomForest(  as.factor(died) ~ Sex + Age + Pclass + SibSp + Parch + Fare + Embarked
                     , data=na.omit(subset(dfd, tt=="trn")))                      #Build random forest model...works.
 varImpPlot(mdl)                                                                  #Can produce some useful plots within the package.
 dfd$prd.rf <- predict(mdl, newdata=dfd, type="prob")[,2]                         #Get prediction.
 rm(mdl)                                                                          #Clean up.
 
-mdl <- ctree(  as.factor(died) ~ Sex + Age + Pclass
+mdl <- ctree(  as.factor(died) ~ Sex + Age + Pclass + SibSp + Parch + Fare + Embarked
              , data=subset(dfd, tt=="trn"))                                      #Build conditional tree model..
 plot(mdl)                                                                        #Fun plot.
 dfd$prd.ctr <- unlist(predict(mdl, newdata=dfd, type="prob"))[1:(nrow(dfd)*2)%%2==0] #Get preciction...kind of painful.
 rm(mdl)                                                                          #Clean up.
 
-mdl <- cforest(   as.factor(died) ~ Sex + Age + Pclass
+mdl <- cforest(   as.factor(died) ~ Sex + Age + Pclass + SibSp + Parch + Fare + Embarked
                ,  data=subset(dfd, tt=="trn"))                                   #Build conditional forest model..
-dfd$prd.cfst <- unlist(predict(mdl, newdata=dfd, type="prob"))[1:(nrow(dfd)*2)%%2==0] #Get preciction...kind of painful.
+dfd$prd.cfst <- unlist(predict(mdl, newdata=dfd, type="prob"))[1:(nrow(dfd)*2)%%2==0] #Get prediction...kind of painful.
 rm(mdl)                                                                          #Clean up.
 
-mdl <- gbm(  died ~ Sex + Age + Pclass
+mdl <- gbm(  died ~ Sex + Age + Pclass + SibSp + Parch + Fare + Embarked
            , data=subset(dfd, tt=="trn"), distribution="bernoulli", n.trees=10^4) #Build generalized boosted model (gradient boosted machine).
 bst <- gbm.perf(mdl,method="OOB")                                                #Show plot of performance and store best
 dfd$prd.gbm <- predict(mdl, newdata=dfd, bst, type="response")                   #Get prediction.
@@ -61,7 +57,7 @@ rm(mdl, bst)                                                                    
 # Neural net.
 require(nnet)
 
-mdl <- nnet(  as.factor(died) ~ Sex + Age + Pclass
+mdl <- nnet(  as.factor(died) ~ Sex + Age + Pclass + SibSp + Parch + Fare + Embarked
             , data=na.omit(subset(dfd, tt=="trn")), size=2)                      #Build neural net.
 mdl
 dfd$prd.ann <- predict(mdl, newdata=dfd)                                         #Get prediction.
@@ -70,13 +66,13 @@ rm(mdl)                                                                         
 # Support vector machines.
 require(e1071)
 
-mdl <- svm(  as.factor(died) ~ Sex + Age + Pclass
+mdl <- svm(  as.factor(died) ~ Sex + Age + Pclass + SibSp + Parch + Fare + Embarked
            , data=subset(dfd, tt=="trn"), probability=TRUE)                      #Build support vector machine.
 dfd$prd.svm[dfd$complete==1] <- attr(predict(mdl, newdata=dfd, probability=TRUE), "probabilities")[,2] #Populated prediction...carefully.
 rm(mdl)                                                                          #Clean up.
 
 # Naive Bayes.
-mdl <- naiveBayes(  as.factor(died) ~ Sex + Age + Pclass
+mdl <- naiveBayes(  as.factor(died) ~ Sex + Age + Pclass + SibSp + Parch + Fare + Embarked
                   , data=subset(dfd, tt=="trn"))                                 #Build Naive Bayes model.
 mdl
 dfd$prd.nb <- predict(mdl, newdata=dfd[,names(mdl$tables)], type="raw")[,2]      #Get prediction...another funny one to avoid issues with non-represented variables appearing in the dataset fed to "predict".
@@ -110,3 +106,4 @@ smr <- data.frame( all=as.numeric(colAUC(X=dfd[,names(dfd)[grep("prd",names(dfd)
 rownames(smr) <- names(dfd)[grep("prd",names(dfd))]                              #Change the rownames to make them more readable.
 smr <- smr[order(smr$tst, decreasing=TRUE),]                                            #Print the results based on best testing performance.
 save(smr, file = 'modelsummary.Rda')
+
